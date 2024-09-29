@@ -6,12 +6,9 @@ import (
 	"io"
 )
 
-
-
 type Encoder[T any] interface {
 	Encode(T) error
 }
-
 
 type Decoder[T any] interface {
 	Decode(T) error
@@ -28,17 +25,10 @@ func NewGobTxEncoder(w io.Writer) *GobTxEncoder {
 	}
 }
 
-
-
 func (e *GobTxEncoder) Encode(tx *Transaction) error {
-	//gob.Register(elliptic.P256())
 	return gob.NewEncoder(e.w).Encode(tx)
 	 
 }
-
-
-
-
 
 type GobTxDecoder struct {
 	r io.Reader
@@ -52,7 +42,6 @@ func NewGobTxDecoder(r io.Reader) *GobTxDecoder {
 }
 
 func (e *GobTxDecoder) Decode(tx *Transaction) error {
-	//gob.Register(elliptic.P256())
 	return gob.NewDecoder(e.r).Decode(tx)
 	 
 }

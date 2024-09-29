@@ -4,9 +4,10 @@ import (
 	"blockchainsystem/crypto"
 	"blockchainsystem/types"
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"fmt"
-	
+	"time"
 )
 
 
@@ -33,7 +34,7 @@ func (h *Header) Bytes() []byte {
 
 type Block struct {
 	*Header
-	Transacations []Transaction
+	Transactions []*Transaction
 	Validator crypto.PublicKey
 	Signature *crypto.Signature
 
@@ -41,20 +42,39 @@ type Block struct {
 	hash types.Hash
 }
 
-func NewBlock(h *Header, tx []Transaction) *Block {
+func NewBlock(h *Header, tx []*Transaction) (*Block, error) {
 	return	&Block{
 		Header: h,
-		Transacations: tx,
+		Transactions: tx,
+	}, nil
+}
+
+
+func NewBlockFromPrevHeader(prevHeader *Header, txx []*Transaction) (*Block, error) {
+	datahash, err := CalculateDataHash(txx)
+	if err != nil {
+		return nil, err
 	}
+	header := &Header{
+		Version: 1,
+		Height: prevHeader.Height + 1,
+		DataHash: datahash,
+		PrevBlockHash: BlockHasher{}.Hash(prevHeader),
+		Timestamp: uint64(time.Now().UnixNano()),
+	}
+
+	return NewBlock(header, txx)
+
+
 }
 
 
 func (b *Block) AddTransaction(tx *Transaction) {
-	b.Transacations = append(b.Transacations, *tx)
+	b.Transactions = append(b.Transactions, tx)
 }
 
 func (b *Block) Sign(privkey crypto.PrivateKey) error {
-	sig, err :=privkey.Sign(b.Header.Bytes())
+	sig, err := privkey.Sign(b.Header.Bytes())
 	if err != nil {
 		return err
 	}
@@ -75,14 +95,20 @@ func (b *Block) Verify() error {
 	}
 
 
-	for _, tx := range b.Transacations {
+	for _, tx := range b.Transactions {
 		if err := tx.Verify(); err != nil {
 			return err
 		}
 	}
 
+	 dataHash, err := CalculateDataHash(b.Transactions)
 
-
+	 if err != nil {
+		return err
+	 }
+	 if dataHash != b.DataHash {
+		return fmt.Errorf("block (%s) has an invalid data hash", b.Hash(BlockHasher{}))
+	 }
 
 
 	return nil
@@ -102,6 +128,21 @@ func (b *Block) Hash(hasher Hasher[*Header]) types.Hash {
 	}
 
 	return b.hash
+}
+
+
+func  CalculateDataHash(txx []*Transaction) (hash types.Hash, err error) {
+	buf := &bytes.Buffer{}
+
+	for _, tx := range txx {
+		if err = tx.Encode(NewGobTxEncoder(buf)); err != nil {
+			return 
+		}
+	}
+
+	hash = sha256.Sum256(buf.Bytes())
+	
+	return
 }
 
 

@@ -17,7 +17,6 @@ func NewBlockValidator(bc *Blockchain) *BlockValidator {
 }
 
 
-
 func (v *BlockValidator) ValidateBlock(b *Block) error {
 	if v.bc.HasBlock(b.Height) {
 		return fmt.Errorf("chain already contains block (%d) with hash (%d)", b.Height, b.Hash(BlockHasher{}))
@@ -36,8 +35,6 @@ func (v *BlockValidator) ValidateBlock(b *Block) error {
 	if hash != b.PrevBlockHash {
 		return fmt.Errorf("the hash of the previous block (%s) is invalid", b.PrevBlockHash)
 	}
-
-
 
 	if err := b.Verify(); err != nil {
 		return err
