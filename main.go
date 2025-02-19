@@ -39,7 +39,7 @@ func main() {
 	go func ()  {
 	for{
 	//	trRemote.SendMessage(network.NetAddr(trLocal.Addr()), []byte("Hello world"))
-		if err := SendTransaction(trRemoteA, network.NetAddr(trLocal.Addr())); err != nil {
+		if err := SendTransaction(trRemoteA, trLocal.Addr()); err != nil {
 			logrus.Error(err)
 		}
 		time.Sleep(2 * time.Second)
@@ -48,12 +48,6 @@ func main() {
 
 
 	privKey := crypto.GeneratePrivateKey()
-	// opts := network.Serveropts{
-	// 	PrivateKey: &privKey,
-	// 	ID: "LOCAL",
-	// 	Transport: []network.Transport{trLocal},
-	// }
-
 	localServer := makeServer("LOCAL", trLocal, &privKey)
 	localServer.Start()
 }
@@ -69,7 +63,7 @@ func initRemoteServers(trs []network.Transport) {
 func makeServer(id string, tr network.Transport, pk *crypto.PrivateKey) *network.Server {
 	opts := network.Serveropts{
 		PrivateKey: pk,
-		ID: id,
+		ID: 		id,
 		Transport: []network.Transport{tr},
 	}
 
@@ -84,8 +78,7 @@ func makeServer(id string, tr network.Transport, pk *crypto.PrivateKey) *network
 
 func SendTransaction(tr network.Transport, to network.NetAddr) error {
 	privkey := crypto.GeneratePrivateKey()
-	data :=  []byte{0x02, 0x0a ,0x02, 0x0a, 0x0b}
-	tx := core.NewTransaction(data)
+	tx := core.NewTransaction(contract())
 	tx.Sign(privkey)
 	buf := &bytes.Buffer{}
 	if err := tx.Encode(core.NewGobTxEncoder(buf)); err != nil {
@@ -95,4 +88,12 @@ func SendTransaction(tr network.Transport, to network.NetAddr) error {
 	msg := network.NewMessage(network.MessageTypeTx, buf.Bytes())
 
 	return tr.SendMessage(to, msg.Bytes())
+}
+
+
+func contract() []byte {
+	data := []byte{0x02, 0x0a, 0x03, 0x0a, 0x0b, 0x4f, 0x0c, 0x4f,  0x0c, 0x46, 0x0c, 0x03, 0x0a,  0x0d, 0x0f} 
+	pushFoo := []byte{ 0x4f, 0x0c, 0x4f,  0x0c, 0x46, 0x0c, 0x03,0x0a, 0x0d, 0xae}
+	data = append(data, pushFoo...)
+	return data
 }

@@ -63,6 +63,6 @@ func (t *LocalTransport) Broadcast(payload []byte) error {
 }
 
 
-func (t *LocalTransport) Addr() string {
-	return string(t.addr)
+func (t *LocalTransport) Addr() NetAddr {
+	return t.addr
 }

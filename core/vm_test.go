@@ -18,30 +18,66 @@ func TestStack(t *testing.T) {
 	value := s.Pop()
 	assert.Equal(t, value, 1)
 
-
-
-
 	value = s.Pop()
 	assert.Equal(t, value, 2)
 }
 
 
-
-
-
 func TestVM(t *testing.T) {
-	//data := []byte{0x02, 0x0a ,0x02, 0x0a, 0x0b}
-	data := []byte{0x03, 0x0a, 0x46, 0x0c, 0x4f ,0x0c, 0x4f, 0x0c, 0x0d}
-	vm := NewVM(data)
+	data := []byte{0x02, 0x0a, 0x03, 0x0a, 0x0b, 0x4f, 0x0c, 0x4f,  0x0c, 0x46, 0x0c, 0x03, 0x0a,  0x0d, 0x0f} 
+	pushFoo := []byte{ 0x4f, 0x0c, 0x4f,  0x0c, 0x46, 0x0c, 0x03,0x0a, 0x0d, 0xae}
+
+	//dataOther := []byte{0x02, 0x0a, 0x03, 0x0a, 0x0b, 0x4d, 0x0c, 0x4f,  0x0c, 0x46, 0x0c, 0x03, 0x0a, 0x0d, 0x0f} 
+
+	data = append(data, pushFoo...)
+
+	
+	contractState := NewState()
+
+	vm := NewVM(data, contractState)
 	assert.Nil(t, vm.Run())
+
+	fmt.Println(vm.stack.data...)
+
+	// valueBytes, err := contractState.Get([]byte("FOO"))
+	// value := deserializeInt64(valueBytes)
+	// assert.Nil(t, err)
+	//  assert.Equal(t, value, int64(5))
+
+
+
 
 
 	//result := vm.stack.Pop()
-	//assert.Equal(t, 4, result)
-	//assert.Equal(t, byte(4), vm.stack[vm.sp])
-	result := vm.stack.Pop().(byte)
 
-	fmt.Println(string(result))
+	//assert.Equal(t, 1 , result)
 
-	assert.Equal(t, "FOO", string(result))
+	//assert.Equal(t, "FOO", string(result))
+}
+
+
+
+func TestVMMul(t *testing.T) {
+	data := []byte{0x02, 0xa, 0x02, 0x0a, 0xea}
+	contractState := NewState()
+
+	vm := NewVM(data, contractState)
+	assert.Nil(t, vm.Run())
+
+	result := vm.stack.Pop().(int)
+	assert.Equal(t, result, 4)
+
+}
+
+
+func TestVMDiv(t *testing.T) {
+	data := []byte{0x04, 0xa, 0x02, 0x0a, 0xfd}
+	contractState := NewState()
+
+	vm := NewVM(data, contractState)
+	assert.Nil(t, vm.Run())
+
+	result := vm.stack.Pop().(int)
+	assert.Equal(t, result, 2)
+
 }

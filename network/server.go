@@ -5,9 +5,9 @@ import (
 	"blockchainsystem/crypto"
 	"blockchainsystem/types"
 	"bytes"
+	"encoding/gob"
+	"fmt"
 	"os"
-
-	//"log"
 	"time"
 
 	"github.com/go-kit/log"
@@ -54,6 +54,7 @@ func NewServer(opts Serveropts) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	
 	s:= &Server{
 		Serveropts: opts,
@@ -69,16 +70,26 @@ func NewServer(opts Serveropts) (*Server, error) {
 		s.RPCProcessor = s
 	}
 
+	
+	if s.isValidator {
+		go s.validatorLoop()
+	}
 
-	return s, nil
+
+	for _, tr := range s.Transport {
+		if err := s.sendGetStatusMessage(tr); err != nil {
+			s.Logger.Log("send get status error", err)
+		}
+	}
+
+
+	return s, nil 
+
 }
 
 func (s *Server) Start() {
 	s.initTransports()		
 
-	if s.isValidator {
-		go s.validatorLoop()
-	}
 free:
 	for {
 		select {
@@ -120,8 +131,33 @@ func (s *Server) ProcessMessage(msg *DecodeMessage) error {
 	switch t := msg.Data.(type) {
 	case *core.Transaction:
 		return s.processTransaction(t)
+	case *core.Block:
+		return s.processBlock(t)
+
+	case *GetStatusMessage:
+		return s.processGetStatusMessage(msg.From, t)
 	}
 
+	return nil
+}
+
+
+func (s *Server) sendGetStatusMessage(tr Transport) error {
+	var (
+	getStatusMsg = new(GetStatusMessage)
+	buf = new(bytes.Buffer)
+	)
+
+	if err := gob.NewEncoder(buf).Encode(getStatusMsg); err != nil {
+		return err
+	}
+	msg := NewMessage(MessageTypeGetStatus, buf.Bytes())
+
+
+	if err := tr.SendMessage(tr.Addr(), msg.Bytes()); err != nil {
+
+	}
+	
 	return nil
 }
 
@@ -136,6 +172,22 @@ func (s *Server) broadcast(payload []byte) error {
 	return nil 
 }
 
+func (s *Server) processGetStatusMessage(from NetAddr, msg *GetStatusMessage) error {
+	fmt.Printf("received status msg from %s => %+v\n", from, msg)
+	
+	return nil 
+}
+
+func (s *Server) processBlock(b *core.Block) error {
+	if err := s.chain.Addblock(b); err != nil {
+		return err
+	}
+
+	go s.broadcastBlock(b)
+
+	return nil
+}
+
 func (s *Server) processTransaction(tx *core.Transaction) error {
 	hash := tx.Hash(core.TxHasher{})
 
@@ -147,19 +199,28 @@ func (s *Server) processTransaction(tx *core.Transaction) error {
 		return nil
 	}
 
-		s.Logger.Log(
-		"msg", "adding new tx to mempool", 
-		"hash", hash,
-		 "mempoollength", s.memPool.Len(),
-		)
+		// s.Logger.Log(
+		// "msg", "adding new tx to mempool", 
+		// "hash", hash,
+		//  "mempoollength", s.memPool.Len(),
+		// )
 
 	go s.broadcastTx(tx)
 
-	return s.memPool.Add(tx)
+	 s.memPool.Add(tx)
+
+	 return nil 
 }
 
 func (s *Server) broadcastBlock(b *core.Block) error {
-	return nil 
+	buf := &bytes.Buffer{}
+	if err := b.Encode(core.NewGobBlockEncoder(buf)); err != nil {
+		return err
+	}
+
+	msg := NewMessage(MessageTypeBlock, buf.Bytes())
+	
+	return s.broadcast(msg.Bytes())
 }
 
 
@@ -225,6 +286,5 @@ func genesisBlock() *core.Block {
 	b, _ := core.NewBlock(Header, nil)
 
 	return b 
-	//return core.Block(&core.Header{})
 
 }

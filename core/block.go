@@ -42,10 +42,10 @@ type Block struct {
 	hash types.Hash
 }
 
-func NewBlock(h *Header, tx []*Transaction) (*Block, error) {
+func NewBlock(h *Header, txx []*Transaction) (*Block, error) {
 	return	&Block{
 		Header: h,
-		Transactions: tx,
+		Transactions: txx,
 	}, nil
 }
 
@@ -71,6 +71,8 @@ func NewBlockFromPrevHeader(prevHeader *Header, txx []*Transaction) (*Block, err
 
 func (b *Block) AddTransaction(tx *Transaction) {
 	b.Transactions = append(b.Transactions, tx)
+	hash, _ := CalculateDataHash(b.Transactions)
+	b.DataHash = hash
 }
 
 func (b *Block) Sign(privkey crypto.PrivateKey) error {

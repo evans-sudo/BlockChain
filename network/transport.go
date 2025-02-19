@@ -9,5 +9,5 @@ type Transport interface {
 	Connect(Transport) error
 	SendMessage(NetAddr, []byte) error 
 	Broadcast  ([]byte) error
-	Addr() string
+	Addr() NetAddr
 }
